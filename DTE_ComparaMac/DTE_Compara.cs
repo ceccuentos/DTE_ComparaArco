@@ -103,6 +103,7 @@ namespace DTE_ComparaArco
 
         static async Task Main(string[] args)
         {
+            
             DTE_Compara DcP = new DTE_Compara();
             oLog.Add("DEBUG", "======== Inicio Proceso ========");
 

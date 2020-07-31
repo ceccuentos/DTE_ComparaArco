@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<applicationSettings>
+  <ArcoXmlEmitidos.Properties.Settings>
+    <setting name="RutSociedades" serializeAs="Xml">
+      <value>
+        <ArrayOfString xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+          <string>76727584-6;Parque Solar Amparo del Sol SpA;Amparo</string>
+          <string>76383031-4;Parque Solar SpA;Parque_Solar</string>
+          <string>76430139-0;Parque Eolico El Nogal SpA;Nogal</string>
+          <string>76528804-5;Joaquin Solar SpA;Joaquin</string>
+          <string>76557855-8;Parsosy Illapel 5 SpA;Parsosy_Illapel</string>
+          <string>76937187-7;PFV Las Codornices SpA;Codornices</string>
+          <string>76503519-8;Angela Solar SpA;Angela_Solar</string>
+          <string>76945275-3;PFV Las Perdices SpA;Perdices</string>
+          <string>76460012-6;Parque Eolico El Maiten SpA;Maiten</string>
+        </ArrayOfString>
+      </value>
+    </setting>
+    <setting name="SMTPName" serializeAs="String">
+      <value>smtp.gmail.com</value>
+    </setting>
+    <setting name="SMTPPort" serializeAs="String">
+      <value>587</value>
+    </setting>
+    <setting name="EnableSSL" serializeAs="String">
+      <value>True</value>
+    </setting>
+    <setting name="EmailUser" serializeAs="String">
+      <value>ceccuentos@gmail.com</value>
+    </setting>
+    <setting name="EmailPassword" serializeAs="String">
+      <value>26VicenteAmanda24</value>
+    </setting>
+    <setting name="EmailTO" serializeAs="String">
+      <value>cristian.enrique.contreras@gmail.com</value>
+    </setting>
+    <setting name="EmailTO2" serializeAs="String">
+      <value>cristian.contreras@codevsys.cl</value>
+    </setting>
+    <setting name="DirectorioExcelSigge" serializeAs="String">
+      <value></value>
+    </setting>
+  </ArcoXmlEmitidos.Properties.Settings>
+</applicationSettings>
