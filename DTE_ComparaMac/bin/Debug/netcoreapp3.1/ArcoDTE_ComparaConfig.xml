@@ -39,7 +39,7 @@
       <value>cristian.contreras@codevsys.cl</value>
     </setting>
     <setting name="DirectorioExcelSigge" serializeAs="String">
-      <value></value>
+      <value>C:\Users\PC\Desktop\xlsSigge</value>
     </setting>
   </ArcoXmlEmitidos.Properties.Settings>
 </applicationSettings>

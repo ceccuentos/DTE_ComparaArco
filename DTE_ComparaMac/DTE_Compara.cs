@@ -21,68 +21,68 @@ namespace DTE_ComparaArco
             // Get Params
             Params.RutSociedades = new List<string[]>();
 
-            
-            var filename = "ArcoDTE_ComparaConfig.xml";
-            var currentDirectory = AppDomain.CurrentDomain.BaseDirectory; //Directory.GetCurrentDirectory();
-            var settingsFilepath = Path.Combine(currentDirectory, filename);
+            var filenameXMLSettings = "ArcoDTE_ComparaConfig.xml";
+            var currentDirectory = AppDomain.CurrentDomain.BaseDirectory; 
+            var settingsXMLFilepath = Path.Combine(currentDirectory, filenameXMLSettings);
 
             oLog = new DTE_log(currentDirectory);
-            //ERROR, WARNING,  DEBUG, INFO, TRACE
-            oLog.Add("TRACE","Get Settings: " + settingsFilepath);
+
+            oLog.Add("TRACE","Get Settings: " + settingsXMLFilepath);
 
             try
             {
-                XElement Properties_Settings = XElement.Load(settingsFilepath);
-
-                IEnumerable<XElement> setts = from parametro in Properties_Settings.Descendants("ArcoXmlEmitidos.Properties.Settings")
+                XElement Properties_Settings = XElement.Load(settingsXMLFilepath);
+                IEnumerable<XElement> nodeSetts = from parametro in Properties_Settings.Descendants("ArcoXmlEmitidos.Properties.Settings")
                                               select (XElement)parametro;
+                
 
-                foreach (XElement el in setts.Elements())
+                foreach (XElement elemento in nodeSetts.Elements())
                 {
-
-                    if (el.Attribute("name").Value == "RutSociedades")
+                    // Tratamiento especial para nodos lista de sociedades
+                    if (elemento.Attribute("name").Value == "RutSociedades")
                     {
-                        XElement nodoSoc = XElement.Parse(el.FirstNode.ToString());
-                        IEnumerable<XElement> elxs = from lx in nodoSoc.Descendants("ArrayOfString")
-                                                     select (XElement)lx;
-                        foreach (XElement elx in elxs.Elements())
+                        XElement nodoSoc = XElement.Parse(elemento.FirstNode.ToString());
+
+                        IEnumerable<XElement> elementoSociedad = from xel in nodoSoc.Descendants("ArrayOfString")
+                                                     select (XElement)xel;
+                        foreach (XElement elxnt in elementoSociedad.Elements())
                         {
-                            Params.RutSociedades.Add(elx.Value.Split(';'));
+                            Params.RutSociedades.Add(elxnt.Value.Split(';'));
                         }
                     }
 
-                    switch (el.Attribute("name").Value)
+
+                    // Otros Nodos
+                    Params.PeriodoEmision = DateTime.Now.AddDays(-1).ToString("yyyy-MM");
+                    switch (elemento.Attribute("name").Value)
                     {
                         case "SMTPName":
-                            Params.SMTPName = el.Value;
+                            Params.SMTPName = elemento.Value;
                             break;
                         case "SMTPPort":
-                            Params.SMTPPort = Convert.ToInt32(el.Value);
+                            Params.SMTPPort = Convert.ToInt32(elemento.Value);
                             break;
                         case "EnableSSL":
-                            Params.EnableSSL = Convert.ToBoolean(el.Value);
+                            Params.EnableSSL = Convert.ToBoolean(elemento.Value);
                             break;
                         case "EmailUser":
-                            Params.EmailUser = el.Value;
+                            Params.EmailUser = elemento.Value;
                             break;
                         case "EmailPassword":
-                            Params.EmailPassword = el.Value;
+                            Params.EmailPassword = elemento.Value;
                             break;
                         case "EmailTO":
-                            Params.EmailTO = el.Value;
+                            Params.EmailTO = elemento.Value;
                             break;
                         case "EmailTO2":
-                            Params.EmailTO2 = el.Value;
+                            Params.EmailTO2 = elemento.Value;
                             break;
                         case "DirectorioExcelSigge":
-                            Params.DirectorioExcelSigge = el.Value;
+                            Params.DirectorioExcelSigge = elemento.Value;
                             break;
 
                     }
-                    // TODO: Normalizar antes de Producción
-                    //Params.PeriodoEmision = "2020-06"; DateTime.Now.AddDays(-1).ToString("yyyy-MM");
-                    Params.PeriodoEmision = DateTime.Now.AddDays(-1).ToString("yyyy-MM");
-
+                  
                 }
 
                 oLog.Add("TRACE", "Get Settings Successed");
@@ -92,13 +92,6 @@ namespace DTE_ComparaArco
                 oLog.Add("ERROR", ex.Message);
                 throw new Exception(ex.Message);
             }
-        }
-
-
-
-        public static int cuadrado(int x)
-        {
-            return x * x;
         }
 
         static async Task Main(string[] args)
@@ -126,7 +119,7 @@ namespace DTE_ComparaArco
                             sociedad[2], Params.PeriodoEmision));
 
                         //Llamada a WebService
-                        await callWS(sociedad);
+                        await callWSFacele(sociedad);
                         // Carga Excel's
                         loadWorkbook(sociedad, fileExcel);
                     }
@@ -140,8 +133,7 @@ namespace DTE_ComparaArco
 
                 }
 
-
-                // Envía correo
+                // Envía correo si hay diferencias
                 if (DTE_Segge.Count() != 0)
                     sendMail();
 
@@ -150,7 +142,6 @@ namespace DTE_ComparaArco
             catch (Exception ex)
             {
                 oLog.Add("ERROR", ex.Message);
-                //throw new Exception(ex.Message);
 
             }
 
@@ -158,17 +149,15 @@ namespace DTE_ComparaArco
 
         static void loadWorkbook(string[] sociedad, string filePath)
         {
-            // TODO: Cambiar variable
-            //filePath = @"/Users/cec/Projects/DTECompara/DTECompara/Cec2.xlsx";
             oLog.Add("TRACE", String.Format("Leyendo Excel {0}", filePath));
 
             try { 
                 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
                 using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read))
                 {
-                    using (var reader = ExcelReaderFactory.CreateReader(stream))
+                    using (var readerExcel = ExcelReaderFactory.CreateReader(stream))
                     {
-                        var result = reader.AsDataSet(new ExcelDataSetConfiguration
+                        var FilasExcel = readerExcel.AsDataSet(new ExcelDataSetConfiguration
                         {
                             ConfigureDataTable = _ => new ExcelDataTableConfiguration
                             {
@@ -177,19 +166,18 @@ namespace DTE_ComparaArco
                         });
 
                         // Folio DTE Posición 7 
-                        IEnumerable<DataRow> ieFilas = from fila in result.Tables[0].AsEnumerable()
+                        IEnumerable<DataRow> ListaFilasSinDTE = from fila in FilasExcel.Tables[0].AsEnumerable()
                                                        where DBNull.Value.Equals(fila[7])
                                                        select fila;
 
-                        int xFilas = 0;
-                        int xFilasDTE = 0;
-                        foreach (var iRow in ieFilas)
+                        int FilasSinDTE = 0;  // Usa contadores
+                        int FilasSinDTEenFacele = 0;
+                        foreach (var iRow in ListaFilasSinDTE)
                         {
                             DTE DTEl = new DTE();
 
                             DTEl.empresa = sociedad[2];
-                            DTEl.tipoDTE = isDbNull(iRow, 8); //DBNull.Value.Equals(iRow[8])? iRow[8].ToString():"";
-                            //DTEl.folioDTE = 0;  //iRow[7].ToString();  //No puede Castear un DBNull
+                            DTEl.tipoDTE = isDbNull(iRow, 8); 
                             DTEl.rutReceptor = iRow[1].ToString();
                             DTEl.razonSocialReceptor = iRow[2].ToString();
                             DTEl.Glosa = iRow[5].ToString();
@@ -203,7 +191,7 @@ namespace DTE_ComparaArco
 
 
                             // Busqueda con LINQ Lista IEnumerator por si se repiten facturas iguales (mismo criterio)
-                            List<DTE> xRows = DTE_WSFacele
+                            List<DTE> ListaDTEinFacele = DTE_WSFacele
                                  .Where(x =>
                                  {
                                      if (
@@ -218,7 +206,7 @@ namespace DTE_ComparaArco
                                  })
                                  .ToList();
 
-                            foreach (var xRow in xRows)  //IEnumerator evita crash si se repite docto
+                            foreach (var xRow in ListaDTEinFacele)  //IEnumerator evita crash si se repite docto
                             {
                                     DTEl.folioDTE = xRow.folioDTE;
 
@@ -229,18 +217,18 @@ namespace DTE_ComparaArco
                                     DTEl.estadoRecepcion = xRow.estadoRecepcion;
                                     DTEl.estadoLey19983 = xRow.estadoLey19983;
                                     DTEl.estadoLey20956 = xRow.estadoLey20956;
-                                    xFilasDTE++;
+                                    FilasSinDTEenFacele++;
                             }
 
                             // Agrega datos a Lista
                             DTE_Segge.Add(DTEl);
-                            xFilas++;
+                            FilasSinDTE++;
 
 
                         }
                         
                         oLog.Add("INFO", String.Format("{0} Registros DTE obtenidos.  {1} Sin DTE, {2} encontrados en WS Facele",
-                            result.Tables[0].Rows.Count.ToString(), xFilas.ToString(), xFilasDTE.ToString()));
+                            FilasExcel.Tables[0].Rows.Count.ToString(), FilasSinDTE.ToString(), FilasSinDTEenFacele.ToString()));
                     }
                 }
 
@@ -255,25 +243,24 @@ namespace DTE_ComparaArco
             }
         }
 
-        static async Task callWS(string[] sociedad)
+        static async Task callWSFacele(string[] sociedad)
         {
             oLog.Add("TRACE", String.Format("Llamando Web service {0}", sociedad[2]));
 
             try
             {
                 // Cnt Registros
-                string rspBody = await CallEndPointAsync( sociedad[0], 999999);
+                string xmlStringRespuesta = await CallEndPointAsync( sociedad[0], 999999);
 
-                StringReader tReader = new StringReader(rspBody);
-                DataSet tDSet = new DataSet();
-                tDSet.ReadXml(tReader);
+                StringReader XMLReader = new StringReader(xmlStringRespuesta);
+                DataSet DataSetFromXML = new DataSet();
+                DataSetFromXML.ReadXml(XMLReader);
 
-                IEnumerable<DataRow> ieXmls = from fila in tDSet.Tables["consultarResponse"].AsEnumerable()
+                IEnumerable<DataRow> nodeXmls = from fila in DataSetFromXML.Tables["consultarResponse"].AsEnumerable()
                                               select fila;
 
-                // TODO: Mejorar llamada LinQ, pasar DataRow a XElement o XMLNode
                 int cntReg = 0;
-                foreach (var ieXml in ieXmls)
+                foreach (var ieXml in nodeXmls)
                 {
                     cntReg = Convert.ToInt32(ieXml[1]);
                     break;
@@ -286,44 +273,38 @@ namespace DTE_ComparaArco
                 {
                     try
                     {
-                     rspBody = await CallEndPointAsync(sociedad[0], i*100);
-                     StringReader sReader = new StringReader(rspBody);
-                     DataSet dSet = new DataSet(); 
-                     dSet.ReadXml(sReader);
+                     xmlStringRespuesta = await CallEndPointAsync(sociedad[0], i*100);
+                     StringReader XMLReaderOffset = new StringReader(xmlStringRespuesta);
+                     DataSet DataSetFromXMLOffset = new DataSet();
+                     DataSetFromXMLOffset.ReadXml(XMLReaderOffset);
 
-                     IEnumerable<DataRow> iRows = from iRow in dSet.Tables[3].AsEnumerable()
+                     IEnumerable<DataRow> nodeXmlsOffset = from iRow in DataSetFromXMLOffset.Tables[3].AsEnumerable()
                                                   select iRow;
 
-                    foreach (var iRow in iRows)
-                    {
-                        DTE DTEl = new DTE();
+                    foreach (var iRow in nodeXmlsOffset)
+                        {
+                            DTE DTEl = new DTE();
 
-                        DTEl.empresa = sociedad[2];
-                        DTEl.tipoDTE = iRow[3].ToString();
-                        DTEl.folioDTE = Convert.ToInt32(iRow[4]);
-                        DTEl.rutReceptor = iRow[5].ToString();
-                        DTEl.razonSocialReceptor = iRow[6].ToString();
-                        //DTEl.Glosa = iRow[16].ToString();
-                        //DTEl.Codigo = iRow[5].ToString();
-                        DTEl.Neto = Convert.ToInt32(iRow[11]);
-                        DTEl.Iva = Convert.ToInt32(iRow[12]);
-                        DTEl.Total = Convert.ToInt32(iRow[14]);
-                        //DTEl.fechaFacturacion = iRow[9].ToString();
+                            DTEl.empresa = sociedad[2];
+                            DTEl.tipoDTE = iRow[3].ToString();
+                            DTEl.folioDTE = Convert.ToInt32(iRow[4]);
+                            DTEl.rutReceptor = iRow[5].ToString();
+                            DTEl.razonSocialReceptor = iRow[6].ToString();
+                            DTEl.Neto = Convert.ToInt32(iRow[11]);
+                            DTEl.Iva = Convert.ToInt32(iRow[12]);
+                            DTEl.Total = Convert.ToInt32(iRow[14]);
 
-                        DTEl.fechaEmision = iRow[8].ToString();
-                        DTEl.fechaFirma = iRow[9].ToString();
-                        DTEl.fechaRegistroSII = iRow[10].ToString();
-                        DTEl.estadoSII = iRow[15].ToString();
-                        DTEl.estadoRecepcion = iRow[17].ToString();
-                        DTEl.estadoLey19983 = iRow[19].ToString();
-                        DTEl.estadoLey20956 = iRow[21].ToString();
+                            DTEl.fechaEmision = iRow[8].ToString();
+                            DTEl.fechaFirma = iRow[9].ToString();
+                            DTEl.fechaRegistroSII = iRow[10].ToString();
+                            DTEl.estadoSII = iRow[15].ToString();
+                            DTEl.estadoRecepcion = iRow[17].ToString();
+                            DTEl.estadoLey19983 = iRow[19].ToString();
+                            DTEl.estadoLey20956 = iRow[21].ToString();
 
-                        //DTEl.fechaPortalCen = Convert.ToDateTime(iRow[5]);
-                        //DTEl.fechaCarga = Convert.ToDateTime(iRow[5]);
+                            DTE_WSFacele.Add(DTEl);
 
-                        DTE_WSFacele.Add(DTEl);
-
-                    }
+                        }
 
                     }
                     catch (Exception ex)
@@ -331,7 +312,6 @@ namespace DTE_ComparaArco
                         oLog.Add("ERROR",
                                 String.Format("Error al cargar página (offset) {0}",
                                 i.ToString(), ex.Message));
-                        //throw new Exception(ex.Message);
                     }
                 }
 
@@ -343,10 +323,7 @@ namespace DTE_ComparaArco
                 oLog.Add("ERROR",
                     String.Format("Error al obtener DTE's en {0} para periodo {1} {2}",
                     sociedad[2],Params.PeriodoEmision, ex.Message));
-                //throw new Exception(ex.Message);
-
             }
-
 
         }
 
@@ -372,9 +349,6 @@ namespace DTE_ComparaArco
             client.Headers.Add(HttpRequestHeader.ContentType, "text/xml");
             client.Headers.Add("SOAPAction", "http://facele.cl/docele/servicios/DTE/consultar");
 
-            // TODO: Eliminar evento, uso de método UploadStringTaskAsync
-            //client.UploadStringCompleted += new UploadStringCompletedEventHandler(client_UploadStringCompleted);
-            //client.UploadStringAsync(new Uri("http://10.38.21.105:8090/DoceleOL/DTEService"), request);
             string rspBody = await client.UploadStringTaskAsync(new Uri("http://10.38.21.105:8090/DoceleOL/DTEService"), requestIni);
             return rspBody;
 
@@ -504,13 +478,6 @@ namespace DTE_ComparaArco
 
             }
 
-
-        }
-
-        // TODO: Eliminar evento, uso de método UploadStringTaskAsync
-        static void client_UploadStringCompleted(object sender, UploadStringCompletedEventArgs e)
-        {
-            Console.WriteLine("UploadStringCompleted: {0}", e.Result);
 
         }
 
