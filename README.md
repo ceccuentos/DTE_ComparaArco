@@ -27,7 +27,7 @@ Referencia:
 * Uso de documento .XML para parámetros generales.  Nombre “ArcoDTE_ComparaConfig.Xml” que debe existir en el mismo directorio del ejecutable.
     * Opciones 
         * RutSociedades: Lista de sociedades a procesar.  Es un array de 3 posiciones, en donde la posición 0 es el Rut, la posición 1 es el nombre y posición 2 es el Alias (uso en nombre Excel)
-            * Ejemplo: `76727584-6;Parque Solar Amparo del Sol SpA;Amparo`
+            * Ejemplo: `12345678-9;Fundación Encordio;Encordio`
         * URIWEBService : URI Web Service de Facele
         * URISOAPAction : URI SOAP para header llamada http
         * SMTPName : nombre servidor smpt
