@@ -15,14 +15,23 @@ namespace DTE_ComparaArco
         public void Add(string level, string sLog)
         {
 
+
             CreateDirectory();
             string nombre = GetNameFile();
 
             string cadena = String.Format("[{0}] {1} - {2}{3}", DateTime.Now, level, sLog, Environment.NewLine);
 
-            StreamWriter sw = new StreamWriter(Path.Combine(Ruta, nombre), true);
-            sw.Write(cadena);
-            sw.Close();
+            if (Transporte == "All" || Transporte == "F")
+            {
+                StreamWriter sw = new StreamWriter(Path.Combine(Ruta, nombre), true);
+                sw.Write(cadena);
+                sw.Close();
+            }
+            if (Transporte == "All" || Transporte == "C")
+            {
+                Console.WriteLine(cadena);
+            }
+
         }
 
         #region HELPER
@@ -60,5 +69,6 @@ namespace DTE_ComparaArco
         #endregion
 
         private string Ruta = "";
+        private string Transporte = "All";  // C: Consola  F: Archivo All: Ambos
     }
 }

@@ -3,6 +3,13 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <ApplicationIcon>TextTemplate.ico</ApplicationIcon>
+    <Authors>Cristián E. Contreras Cabrera</Authors>
+    <Company>Codevsys SpA</Company>
+    <Description>App de comparación de DTE's desde plataforma Sigge consumiento Servicio SOAP de Facele</Description>
+    <Copyright>Codevsys SpA</Copyright>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>

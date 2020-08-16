@@ -11,8 +11,11 @@
 using System;
 using System.Reflection;
 
-[assembly: System.Reflection.AssemblyCompanyAttribute("DTE_ComparaArco")]
+[assembly: System.Reflection.AssemblyCompanyAttribute("Codevsys SpA")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
+[assembly: System.Reflection.AssemblyCopyrightAttribute("Codevsys SpA")]
+[assembly: System.Reflection.AssemblyDescriptionAttribute("App de comparación de DTE\'s desde plataforma Sigge consumiento Servicio SOAP de F" +
+    "acele")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
 [assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
 [assembly: System.Reflection.AssemblyProductAttribute("DTE_ComparaArco")]

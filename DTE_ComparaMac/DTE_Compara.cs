@@ -11,6 +11,7 @@ using System.Xml.Linq;
 using System.Net.Mail;
 using System.Text.RegularExpressions;
 using System.Security;
+using System.Threading;
 
 namespace DTE_ComparaArco
 {
@@ -116,9 +117,7 @@ namespace DTE_ComparaArco
 
         static async Task Main(string[] args)
         {
-            
             DTE_Compara DcP = new DTE_Compara();
-
 
             try
             {
@@ -205,7 +204,10 @@ namespace DTE_ComparaArco
             {
                 oLog.Add("ERROR", ex.Message);
             }
-
+            finally
+            {
+                Thread.Sleep(3000);
+            }
         }
 
         static void loadWorkbook(string[] sociedad, string filePath)
@@ -231,7 +233,7 @@ namespace DTE_ComparaArco
                                                        where DBNull.Value.Equals(fila[7])
                                                        select fila;
 
-                        int FilasSinDTE = 0;  // Usa contadores
+                        int FilasSinDTE = 0;  
                         int FilasSinDTEenFacele = 0;
                         foreach (var iRow in ListaFilasSinDTE)
                         {
@@ -300,7 +302,6 @@ namespace DTE_ComparaArco
                 oLog.Add("ERROR",
                     String.Format("Error leer archivo Excel Sigge {0} para periodo {1} {2}",
                     filePath, Params.PeriodoEmision, ex.Message));
-                //throw new Exception(ex.Message);
 
             }
         }
@@ -431,7 +432,6 @@ namespace DTE_ComparaArco
 
                 Mensaje.Subject = String.Format("Documentos Sigge sin DTE {0}", "");
 
-
                 SmtpClient smtp = new SmtpClient();
                 NetworkCredential credencial = new NetworkCredential()
                 {
@@ -456,8 +456,7 @@ namespace DTE_ComparaArco
                         </thead>
 
                         <tbody>
-                          <tr>
-                            <!-- <td style='background-color:#c0c0c0;border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;text-align:left;vertical-align:top;word-break:normal'>Sociedad</td> --> 
+                          <tr> 
                             <td style='background-color:#c0c0c0;border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;text-align:left;vertical-align:top;word-break:normal'>Rut<br>Cliente</td>
                             <td style='background-color:#c0c0c0;border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;text-align:left;vertical-align:top;word-break:normal'>Nombre</td>
                             <td style='background-color:#c0c0c0;border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;text-align:left;vertical-align:top;word-break:normal'>Neto</td>
@@ -573,7 +572,7 @@ namespace DTE_ComparaArco
             if (!DBNull.Value.Equals(row[indice]))
                 return (string)row[indice].ToString().Trim();
             else
-                return ""; // String.Empty;
+                return ""; 
         }
 
         static string Right( string value, int length)

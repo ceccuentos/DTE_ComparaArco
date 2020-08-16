@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>DTE_ComparaArco</id>
+    <version>1.0.0</version>
+    <authors>Cristián E. Contreras Cabrera</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>App de comparación de DTE's desde plataforma Sigge consumiento Servicio SOAP de Facele</description>
+    <copyright>Codevsys SpA</copyright>
+    <dependencies>
+      <group targetFramework=".NETCoreApp3.1">
+        <dependency id="ExcelDataReader" version="3.6.0" exclude="Build,Analyzers" />
+        <dependency id="ExcelDataReader.DataSet" version="3.6.0" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="C:\Users\PC\Source\Repos\ceccuentos\DTE_ComparaArco\DTE_ComparaMac\bin\Debug\netcoreapp3.1\DTE_ComparaArco.runtimeconfig.json" target="lib\netcoreapp3.1\DTE_ComparaArco.runtimeconfig.json" />
+    <file src="C:\Users\PC\Source\Repos\ceccuentos\DTE_ComparaArco\DTE_ComparaMac\bin\Debug\netcoreapp3.1\DTE_ComparaArco.dll" target="lib\netcoreapp3.1\DTE_ComparaArco.dll" />
+  </files>
+</package>
