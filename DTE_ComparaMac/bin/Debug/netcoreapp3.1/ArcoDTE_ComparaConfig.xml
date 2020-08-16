@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <applicationSettings>
-  <ArcoXmlEmitidos.Properties.Settings>
+  <ArcoDTE_Compara.Properties.Settings>
     <setting name="RutSociedades" serializeAs="Xml">
       <value>
         <ArrayOfString xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -17,8 +17,14 @@
         </ArrayOfString>
       </value>
     </setting>
-    <setting name="SMTPName" serializeAs="String">
-      <value>smtp.gmail.com</value>
+	<setting name="URIWEBService" serializeAs="String">
+		  <value>http://10.38.21.105:8090/DoceleOL/DTEService</value>
+	</setting>
+	<setting name="URISOAPAction" serializeAs="String">
+		  <value>http://facele.cl/docele/servicios/DTE/consultar</value>
+	</setting>
+	<setting name="SMTPName" serializeAs="String">
+      <value>smtp.gmail.comx</value>
     </setting>
     <setting name="SMTPPort" serializeAs="String">
       <value>587</value>
@@ -39,7 +45,7 @@
       <value>cristian.contreras@codevsys.cl</value>
     </setting>
     <setting name="DirectorioExcelSigge" serializeAs="String">
-      <value>C:\Users\PC\Desktop\xlsSigge</value>
+      <value>c:\Users\PC\Desktop\xlsSigge</value>
     </setting>
-  </ArcoXmlEmitidos.Properties.Settings>
+  </ArcoDTE_Compara.Properties.Settings>
 </applicationSettings>

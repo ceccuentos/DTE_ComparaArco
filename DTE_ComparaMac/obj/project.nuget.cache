@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "q828vrr4PQOII0KsQuj6JZBeKlhiXfh8qRlwH0tm5aLQ9SdmNwMs/K4SgH5Botd460P4+ppd/WglZEnv06E9KA==",
+  "dgSpecHash": "aLApAUeSnuRCMz5FVS3aeD/G38zrGYqfHP96NhmqFoBMv2kAHX2WZnpUbZuVg6oc8qr1PwynyFD8qf3Dt9jp2w==",
   "success": true,
-  "projectFilePath": "C:\\Users\\PC\\source\\repos\\ceccuentos\\DTE_ComparaArco\\DTE_ComparaMac\\DTE_ComparaArco.csproj",
+  "projectFilePath": "C:\\Users\\PC\\Source\\Repos\\ceccuentos\\DTE_ComparaArco\\DTE_ComparaMac\\DTE_ComparaArco.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\PC\\.nuget\\packages\\exceldatareader\\3.6.0\\exceldatareader.3.6.0.nupkg.sha512",
     "C:\\Users\\PC\\.nuget\\packages\\exceldatareader.dataset\\3.6.0\\exceldatareader.dataset.3.6.0.nupkg.sha512"

@@ -9,6 +9,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using System.Net.Mail;
+using System.Text.RegularExpressions;
+using System.Security;
 
 namespace DTE_ComparaArco
 {
@@ -19,26 +21,31 @@ namespace DTE_ComparaArco
         {
             
             // Get Params
-            Params.RutSociedades = new List<string[]>();
-
-            var filenameXMLSettings = "ArcoDTE_ComparaConfig.xml";
-            var currentDirectory = AppDomain.CurrentDomain.BaseDirectory; 
-            var settingsXMLFilepath = Path.Combine(currentDirectory, filenameXMLSettings);
-
-            oLog = new DTE_log(currentDirectory);
-
-            oLog.Add("TRACE","Get Settings: " + settingsXMLFilepath);
-
             try
             {
+                Params.RutSociedades = new List<string[]>();
+
+                var filenameXMLSettings = "ArcoDTE_ComparaConfig.xml";
+                var currentDirectory = AppDomain.CurrentDomain.BaseDirectory; 
+                var settingsXMLFilepath = Path.Combine(currentDirectory, filenameXMLSettings);
+
+                oLog = new DTE_log(currentDirectory);
+                oLog.Add("DEBUG", "======== Inicio Proceso ========");
+                oLog.Add("TRACE", "Get Settings: " + settingsXMLFilepath);
+
+                if (!File.Exists(settingsXMLFilepath))
+                    {
+                    throw new System.ArgumentException("No existe archivo de configuración", settingsXMLFilepath);
+                    }
+
                 XElement Properties_Settings = XElement.Load(settingsXMLFilepath);
-                IEnumerable<XElement> nodeSetts = from parametro in Properties_Settings.Descendants("ArcoXmlEmitidos.Properties.Settings")
+                IEnumerable<XElement> nodeSetts = from parametro in Properties_Settings.Descendants("ArcoDTE_Compara.Properties.Settings")
                                               select (XElement)parametro;
                 
 
                 foreach (XElement elemento in nodeSetts.Elements())
                 {
-                    // Tratamiento especial para nodos lista de sociedades
+                    // Tratamiento especial array nodos lista de sociedades
                     if (elemento.Attribute("name").Value == "RutSociedades")
                     {
                         XElement nodoSoc = XElement.Parse(elemento.FirstNode.ToString());
@@ -51,11 +58,16 @@ namespace DTE_ComparaArco
                         }
                     }
 
-
                     // Otros Nodos
                     Params.PeriodoEmision = DateTime.Now.AddDays(-1).ToString("yyyy-MM");
                     switch (elemento.Attribute("name").Value)
                     {
+                        case "URIWEBService":
+                            Params.URIWEBService = elemento.Value;
+                            break;
+                        case "URISOAPAction":
+                            Params.URISOAPAction = elemento.Value;
+                            break;
                         case "SMTPName":
                             Params.SMTPName = elemento.Value;
                             break;
@@ -85,7 +97,15 @@ namespace DTE_ComparaArco
                   
                 }
 
-                oLog.Add("TRACE", "Get Settings Successed");
+                if (Params.RutSociedades.Count == 0)
+                {
+                    oLog.Add("ERROR", "Sociedades no encontradas, revise estructura XML");
+                }
+                else
+                {
+                    oLog.Add("TRACE", "Get Settings Successed");
+
+                }
             }
             catch (Exception ex)
             {
@@ -98,37 +118,79 @@ namespace DTE_ComparaArco
         {
             
             DTE_Compara DcP = new DTE_Compara();
-            oLog.Add("DEBUG", "======== Inicio Proceso ========");
+
 
             try
             {
-                foreach (string[] sociedad in Params.RutSociedades)
+                string paternSociedades = string.Join("|",
+                                                     Params.RutSociedades.Select(elemento => elemento[2]));
+                //Fmto: <alias>__AAAA-MM.xlsx 
+                Regex exReg = new Regex(@"^(" + paternSociedades + ")__[0-9]{4}-0[1-9]|1[0-2].(xls|xlsx)$",
+                      RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+                string dirSigge = Params.DirectorioExcelSigge != "" ? Params.DirectorioExcelSigge : AppDomain.CurrentDomain.BaseDirectory;
+                string dirSiggeProcessed = Path.Combine(dirSigge, "processedfiles");
+                string[] filesExcelinDirSigge = Directory.GetFiles(@dirSigge, "*.xls?");
+
+                oLog.Add("TRACE", String.Format("{0} archivos Excel encontrados... ", filesExcelinDirSigge.Count()));
+
+                foreach (string file in filesExcelinDirSigge)
                 {
-                    // Verifica existencia Planilla Excel en Directorio Params.DirectorioExcelSigge
-                    // Formato: Alias__AAAA-MM.xls o Alias__AAAA-MM.xlsx
-                    string dirSigge = Params.DirectorioExcelSigge != "" ? Params.DirectorioExcelSigge : AppDomain.CurrentDomain.BaseDirectory; 
-                    string fileExcelxls = Path.Combine(dirSigge, sociedad[2] + "__" + Params.PeriodoEmision + ".xls");
-                    string fileExcelxlsx = Path.Combine(dirSigge, sociedad[2] + "__" + Params.PeriodoEmision + ".xlsx");
+                    
+                    string onlyfileName = file.Substring(dirSigge.Length + 1).Replace(".xlsx", "").Replace(".xls","");
 
-                    string fileExcel = File.Exists(fileExcelxls) ? fileExcelxls : File.Exists(fileExcelxlsx) ? fileExcelxlsx : "";
-
-                    if (File.Exists(fileExcel))
+                    if (exReg.IsMatch(onlyfileName))
                     {
-                        oLog.Add("TRACE",
-                            String.Format("Sociedad {0} planilla Sigge encontrada periodo {1} ",
-                            sociedad[2], Params.PeriodoEmision));
+                        string[] ArrayPartFile = Regex.Split(onlyfileName, "__|-");
+                        string[][] Getsociedad = Params.RutSociedades.Where(elemento => elemento[2] == ArrayPartFile[0]).ToArray();
 
-                        //Llamada a WebService
-                        await callWSFacele(sociedad);
+                        
+                        string Periodo = String.Format("{0}-{1}", ArrayPartFile[1], ArrayPartFile[2]);
+
+                        oLog.Add("TRACE",
+                                String.Format("Planilla Sigge encontrada: Sociedad {0}, Periodo {1}, archivo {2}",
+                                ArrayPartFile[0], Periodo, onlyfileName));
+
+                            string PeriodoPost = String.Format("{0}-{1}",
+                                 ArrayPartFile[2].ToString() == "12"
+                                     ? (Convert.ToInt32(ArrayPartFile[1]) + 1).ToString()
+                                     : ArrayPartFile[1].ToString(),
+                                 ArrayPartFile[2].ToString() == "12"
+                                     ? "01"
+                                     : Right("0" + (Convert.ToInt32(ArrayPartFile[2]) + 1).ToString(), 2)
+                                   );
+
+                            string PeriodoAnt = String.Format("{0}-{1}",
+                                     ArrayPartFile[2].ToString() == "01"
+                                         ? (Convert.ToInt32(ArrayPartFile[1]) - 1).ToString()
+                                         : ArrayPartFile[1].ToString(),
+                                     ArrayPartFile[2].ToString() == "01"
+                                         ? "12"
+                                         : Right("0" + (Convert.ToInt32(ArrayPartFile[2]) - 1).ToString(), 2)
+                                     ) ;
+
+                        await callWSFacele(Getsociedad[0], PeriodoAnt);
+                        await callWSFacele(Getsociedad[0], Periodo);
+                        await callWSFacele(Getsociedad[0], PeriodoPost);
+
                         // Carga Excel's
-                        loadWorkbook(sociedad, fileExcel);
+                        loadWorkbook(Getsociedad[0], file);
+
+                        // Mover archivos
+                        CreateDirectory(dirSiggeProcessed);
+
+                        oLog.Add("TRACE",
+                                String.Format("Terminado: Moviendo archivo {0} a directorio procesados",
+                                file.Substring(dirSigge.Length + 1)));
+
+                        File.Move(file, Path.Combine(dirSiggeProcessed, file.Substring(dirSigge.Length + 1)), true);
+
                     }
                     else
                     {
-                        oLog.Add("WARNING",
-                            String.Format("Sociedad {0} sin planilla Sigge periodo {1}",
-                            sociedad[2], Params.PeriodoEmision));
-
+                        oLog.Add("INFO",
+                                String.Format("Archivo Excel {0} fue ignorado (no clumple reglas)",
+                                file.Substring(dirSigge.Length + 1)));
                     }
 
                 }
@@ -142,7 +204,6 @@ namespace DTE_ComparaArco
             catch (Exception ex)
             {
                 oLog.Add("ERROR", ex.Message);
-
             }
 
         }
@@ -180,6 +241,7 @@ namespace DTE_ComparaArco
                             DTEl.tipoDTE = isDbNull(iRow, 8); 
                             DTEl.rutReceptor = iRow[1].ToString();
                             DTEl.razonSocialReceptor = iRow[2].ToString();
+                            DTEl.PeriodoFacturacion = iRow[3].ToString();
                             DTEl.Glosa = iRow[5].ToString();
                             DTEl.Codigo = iRow[6].ToString();
                             DTEl.Neto = Int32.Parse(isDbNull(iRow, 9));
@@ -243,14 +305,14 @@ namespace DTE_ComparaArco
             }
         }
 
-        static async Task callWSFacele(string[] sociedad)
+        static async Task callWSFacele(string[] sociedad, string Periodo)
         {
-            oLog.Add("TRACE", String.Format("Llamando Web service {0}", sociedad[2]));
+            oLog.Add("TRACE", String.Format("Llamando Web service {0} Periodo {1}", sociedad[2], Periodo));
 
             try
             {
                 // Cnt Registros
-                string xmlStringRespuesta = await CallEndPointAsync( sociedad[0], 999999);
+                string xmlStringRespuesta = await CallEndPointAsync( sociedad[0], 999999, Periodo);
 
                 StringReader XMLReader = new StringReader(xmlStringRespuesta);
                 DataSet DataSetFromXML = new DataSet();
@@ -273,7 +335,7 @@ namespace DTE_ComparaArco
                 {
                     try
                     {
-                     xmlStringRespuesta = await CallEndPointAsync(sociedad[0], i*100);
+                     xmlStringRespuesta = await CallEndPointAsync(sociedad[0], i*100, Periodo);
                      StringReader XMLReaderOffset = new StringReader(xmlStringRespuesta);
                      DataSet DataSetFromXMLOffset = new DataSet();
                      DataSetFromXMLOffset.ReadXml(XMLReaderOffset);
@@ -315,7 +377,7 @@ namespace DTE_ComparaArco
                     }
                 }
 
-                oLog.Add("TRACE", String.Format("Llamada web service {0} Exitosa", sociedad[2]));
+                oLog.Add("TRACE", String.Format("Llamada web service {0} Exitosa Periodo {1}", sociedad[2], Periodo));
 
             }
             catch (Exception ex)
@@ -327,7 +389,7 @@ namespace DTE_ComparaArco
 
         }
 
-        static async Task<string> CallEndPointAsync(string sociedad, int offset)
+        static async Task<string> CallEndPointAsync(string sociedad, int offset, string Periodo)
         {
             WebClient client = new WebClient();
             string request;
@@ -344,19 +406,20 @@ namespace DTE_ComparaArco
             request += "   </soapenv:Body>";
             request += "</soapenv:Envelope>";
 
-            string requestIni = String.Format(request, sociedad, Params.PeriodoEmision, offset);
+            string requestIni = String.Format(request, sociedad, Periodo, offset);
 
             client.Headers.Add(HttpRequestHeader.ContentType, "text/xml");
-            client.Headers.Add("SOAPAction", "http://facele.cl/docele/servicios/DTE/consultar");
+            client.Headers.Add("SOAPAction", Params.URISOAPAction);
 
-            string rspBody = await client.UploadStringTaskAsync(new Uri("http://10.38.21.105:8090/DoceleOL/DTEService"), requestIni);
+            string rspBody = await client.UploadStringTaskAsync(new Uri(Params.URIWEBService), requestIni);
+
             return rspBody;
 
         }
 
-        static void  sendMail()
+        static void  sendMail(string BodyFileHtml_IF_EMAIL_FAILED="")
         {
-
+            
             try
             {
                 MailMessage Mensaje = new MailMessage();
@@ -366,7 +429,7 @@ namespace DTE_ComparaArco
             
                 Mensaje.IsBodyHtml = true;
 
-                Mensaje.Subject = String.Format("Documentos Sigge sin DTE {0}", Params.PeriodoEmision);
+                Mensaje.Subject = String.Format("Documentos Sigge sin DTE {0}", "");
 
 
                 SmtpClient smtp = new SmtpClient();
@@ -401,7 +464,7 @@ namespace DTE_ComparaArco
                             <td style='background-color:#c0c0c0;border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;text-align:left;vertical-align:top;word-break:normal'>Iva</td>
                             <td style='background-color:#c0c0c0;border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;text-align:left;vertical-align:top;word-break:normal'>Total</td>
                             <td style='background-color:#c0c0c0;border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;text-align:left;vertical-align:top;word-break:normal'>Glosa</td>
-                            <td style='background-color:#c0c0c0;border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;text-align:left;vertical-align:top;word-break:normal'>Codigo</td>
+                            <td style='background-color:#c0c0c0;border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;text-align:left;vertical-align:top;word-break:normal'>Periodo</td>
                             <td style='background-color:#c0c0c0;border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;text-align:left;vertical-align:top;word-break:normal'>Tipo<br>DTE</td>
                             <td style='background-color:#c0c0c0;border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;text-align:left;vertical-align:top;word-break:normal'>Folio<br>DTE</td>
                             <td style='background-color:#c0c0c0;border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;overflow:hidden;padding:10px 5px;text-align:left;vertical-align:top;word-break:normal'>Fecha<br>Emision</td>
@@ -443,12 +506,11 @@ namespace DTE_ComparaArco
                         string cuerpoTabla = "";
                         foreach (var iList in sDTE)
                         {
-                            //iList.empresa,
                             cuerpoTabla += String.Format(rowTabla,
                                 iList.rutReceptor, iList.razonSocialReceptor,
                                 iList.Neto, iList.Iva,
                                 iList.Total,
-                                iList.Glosa, iList.Codigo,
+                                iList.Glosa, iList.PeriodoFacturacion,
                                 iList.tipoDTE,
                                 iList.folioDTE, iList.fechaEmision, iList.estadoSII,
                                 iList.estadoRecepcion, iList.fechaFirma
@@ -465,6 +527,7 @@ namespace DTE_ComparaArco
                        </td>";
 
                 Mensaje.Body = msgMail + "</br></br>" + xBody +"</br></br>" + footerTabla;
+                BodyFileHtml_IF_EMAIL_FAILED = Mensaje.Body;
 
                 smtp.Send(Mensaje);
 
@@ -475,6 +538,30 @@ namespace DTE_ComparaArco
             {
                 oLog.Add("ERROR",
                     String.Format("Error al enviar EMail {0}", ex.Message));
+
+                if
+                      (
+                          (ex is ArgumentException
+                          || ex is ArgumentNullException
+                          || ex is InvalidOperationException
+                          || ex is ObjectDisposedException
+                          || ex is SmtpException
+                          || ex is SmtpFailedRecipientException
+                          || ex is SmtpFailedRecipientsException)
+                          && BodyFileHtml_IF_EMAIL_FAILED != ""
+
+                      )
+                {
+                    
+                    string nombre = "DTEComparaHtml_" + DateTime.Now.Year + "_" + DateTime.Now.Month + "_" + DateTime.Now.Day + DateTime.Now.Hour + DateTime.Now.Minute + ".html";
+                    StreamWriter sw = new StreamWriter(Path.Combine(Params.DirectorioExcelSigge, nombre), true);
+                    sw.Write(BodyFileHtml_IF_EMAIL_FAILED);
+                    sw.Close();
+    
+                    oLog.Add("INFO",
+                        String.Format("Error al enviar EMail, genera resultado en archivo {0}.", nombre));
+                }
+
 
             }
 
@@ -489,6 +576,38 @@ namespace DTE_ComparaArco
                 return ""; // String.Empty;
         }
 
+        static string Right( string value, int length)
+        {
+            if (String.IsNullOrEmpty(value)) return string.Empty;
+
+            return value.Length <= length ? value : value.Substring(value.Length - length);
+        }
+
+        static void CreateDirectory(string Ruta)
+        {
+            try
+            {
+                if (!Directory.Exists(Ruta))
+                    Directory.CreateDirectory(Ruta);
+            }
+            catch (Exception ex)
+            {
+                if
+                  (
+                      ex is UnauthorizedAccessException
+                      || ex is ArgumentNullException
+                      || ex is PathTooLongException
+                      || ex is DirectoryNotFoundException
+                      || ex is NotSupportedException
+                      || ex is ArgumentException
+                      || ex is SecurityException
+                      || ex is IOException
+                  )
+                {
+                    throw new Exception(ex.Message);
+                }
+            }
+        }
 
         // TODO: Instanciar propiedades en constructor
         static List<DTE> DTE_WSFacele = new List<DTE>();
@@ -500,6 +619,8 @@ namespace DTE_ComparaArco
     public class Settings
     {
         public List<String[]> RutSociedades { get; set; }
+        public String URIWEBService { get; set; }
+        public String URISOAPAction { get; set; }
         public String SMTPName { get; set; }
         public int SMTPPort { get; set; }
         public bool EnableSSL { get; set; }
@@ -519,6 +640,8 @@ namespace DTE_ComparaArco
         public string fechaFacturacion { get; set; }  
         public string fechaPortalCen { get; set; }
         public string fechaCarga { get; set; }
+        public string PeriodoFacturacion { get; set; }
+        
 
         // Comparte Sigge & Facele
         public string empresa { get; set; }
