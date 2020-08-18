@@ -10,11 +10,12 @@ namespace DTE_ComparaArco
         public DTE_log(string Ruta)
         {
             this.Ruta = Ruta;
+
         }
 
         public void Add(string level, string sLog)
         {
-
+            Generated_Errors = (level == "ERROR" || Generated_Errors);
 
             CreateDirectory();
             string nombre = GetNameFile();
@@ -70,5 +71,6 @@ namespace DTE_ComparaArco
 
         private string Ruta = "";
         private string Transporte = "All";  // C: Consola  F: Archivo All: Ambos
+        public bool Generated_Errors = false;
     }
 }

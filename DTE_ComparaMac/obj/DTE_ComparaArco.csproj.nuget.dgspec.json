@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\PC\\source\\repos\\ceccuentos\\DTE_ComparaArco\\DTE_ComparaMac\\DTE_ComparaArco.csproj": {}
+    "C:\\Users\\PC\\Source\\Repos\\ceccuentos\\DTE_ComparaArco\\DTE_ComparaMac\\DTE_ComparaArco.csproj": {}
   },
   "projects": {
-    "C:\\Users\\PC\\source\\repos\\ceccuentos\\DTE_ComparaArco\\DTE_ComparaMac\\DTE_ComparaArco.csproj": {
-      "version": "1.0.0",
+    "C:\\Users\\PC\\Source\\Repos\\ceccuentos\\DTE_ComparaArco\\DTE_ComparaMac\\DTE_ComparaArco.csproj": {
+      "version": "1.1.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\PC\\source\\repos\\ceccuentos\\DTE_ComparaArco\\DTE_ComparaMac\\DTE_ComparaArco.csproj",
+        "projectUniqueName": "C:\\Users\\PC\\Source\\Repos\\ceccuentos\\DTE_ComparaArco\\DTE_ComparaMac\\DTE_ComparaArco.csproj",
         "projectName": "DTE_ComparaArco",
-        "projectPath": "C:\\Users\\PC\\source\\repos\\ceccuentos\\DTE_ComparaArco\\DTE_ComparaMac\\DTE_ComparaArco.csproj",
+        "projectPath": "C:\\Users\\PC\\Source\\Repos\\ceccuentos\\DTE_ComparaArco\\DTE_ComparaMac\\DTE_ComparaArco.csproj",
         "packagesPath": "C:\\Users\\PC\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\PC\\source\\repos\\ceccuentos\\DTE_ComparaArco\\DTE_ComparaMac\\obj\\",
+        "outputPath": "C:\\Users\\PC\\Source\\Repos\\ceccuentos\\DTE_ComparaArco\\DTE_ComparaMac\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Microsoft\\Xamarin\\NuGet\\"

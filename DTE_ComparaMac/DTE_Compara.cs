@@ -27,12 +27,11 @@ namespace DTE_ComparaArco
                 Params.RutSociedades = new List<string[]>();
 
                 var filenameXMLSettings = "ArcoDTE_ComparaConfig.xml";
-                var currentDirectory = AppDomain.CurrentDomain.BaseDirectory; 
-                var settingsXMLFilepath = Path.Combine(currentDirectory, filenameXMLSettings);
+                var currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
 
                 oLog = new DTE_log(currentDirectory);
-                oLog.Add("DEBUG", "======== Inicio Proceso ========");
-                oLog.Add("TRACE", "Get Settings: " + settingsXMLFilepath);
+
+                var settingsXMLFilepath = Path.Combine(currentDirectory, filenameXMLSettings);
 
                 if (!File.Exists(settingsXMLFilepath))
                     {
@@ -93,21 +92,33 @@ namespace DTE_ComparaArco
                         case "DirectorioExcelSigge":
                             Params.DirectorioExcelSigge = elemento.Value;
                             break;
-
+                        case "DirectorioLogs":
+                            Params.DirectorioLogs = elemento.Value;
+                            break;
+                            
                     }
                   
                 }
 
-                if (Params.RutSociedades.Count == 0)
+                if (Directory.Exists(Params.DirectorioLogs))
                 {
-                    oLog.Add("ERROR", "Sociedades no encontradas, revise estructura XML");
+                    oLog = new DTE_log(Params.DirectorioLogs);
+                } 
+
+                oLog.Add("DEBUG", "======== Inicio Proceso ========");
+                oLog.Add("TRACE", "Get Settings: " + settingsXMLFilepath);
+
+                if (Params.RutSociedades.Count() == 0)
+                {
+                    throw new System.ArgumentException("Sociedades no encontradas, revise estructura XML", settingsXMLFilepath);
                 }
                 else
                 {
                     oLog.Add("TRACE", "Get Settings Successed");
-
                 }
+
             }
+            
             catch (Exception ex)
             {
                 oLog.Add("ERROR", ex.Message);
@@ -173,7 +184,7 @@ namespace DTE_ComparaArco
                         await callWSFacele(Getsociedad[0], PeriodoPost);
 
                         // Carga Excel's
-                        loadWorkbook(Getsociedad[0], file);
+                        loadWorkbookSigge(Getsociedad[0], file);
 
                         // Mover archivos
                         CreateDirectory(dirSiggeProcessed);
@@ -188,15 +199,20 @@ namespace DTE_ComparaArco
                     else
                     {
                         oLog.Add("INFO",
-                                String.Format("Archivo Excel {0} fue ignorado (no clumple reglas)",
+                                String.Format("Archivo Excel {0} fue ignorado (no cumple reglas)",
                                 file.Substring(dirSigge.Length + 1)));
                     }
 
                 }
 
+                // Envía correo si hay Error
+                if (oLog.Generated_Errors)
+                    sendErrorNotification_Mail();
+
                 // Envía correo si hay diferencias
                 if (DTE_Segge.Count() != 0)
-                    sendMail();
+                    sendDiffNotification_Mail();
+
 
                 oLog.Add("TRACE", "======== Fin Proceso ========");
             }
@@ -210,7 +226,7 @@ namespace DTE_ComparaArco
             }
         }
 
-        static void loadWorkbook(string[] sociedad, string filePath)
+        static void loadWorkbookSigge(string[] sociedad, string filePath)
         {
             oLog.Add("TRACE", String.Format("Leyendo Excel {0}", filePath));
 
@@ -229,65 +245,95 @@ namespace DTE_ComparaArco
                         });
 
                         // Folio DTE Posición 7 
-                        IEnumerable<DataRow> ListaFilasSinDTE = from fila in FilasExcel.Tables[0].AsEnumerable()
+                        IEnumerable<DataRow> ListaFilasSinDTESigge = from fila in FilasExcel.Tables[0].AsEnumerable()
                                                        where DBNull.Value.Equals(fila[7])
                                                        select fila;
 
                         int FilasSinDTE = 0;  
                         int FilasSinDTEenFacele = 0;
-                        foreach (var iRow in ListaFilasSinDTE)
+                        foreach (var ListaFilaSinDTE in ListaFilasSinDTESigge)
                         {
-                            DTE DTEl = new DTE();
 
-                            DTEl.empresa = sociedad[2];
-                            DTEl.tipoDTE = isDbNull(iRow, 8); 
-                            DTEl.rutReceptor = iRow[1].ToString();
-                            DTEl.razonSocialReceptor = iRow[2].ToString();
-                            DTEl.PeriodoFacturacion = iRow[3].ToString();
-                            DTEl.Glosa = iRow[5].ToString();
-                            DTEl.Codigo = iRow[6].ToString();
-                            DTEl.Neto = Int32.Parse(isDbNull(iRow, 9));
-                            DTEl.Iva = Int32.Parse(isDbNull(iRow, 10));
-                            DTEl.Total = Int32.Parse(isDbNull(iRow, 11));
-                            DTEl.fechaFacturacion = isDbNull(iRow, 12);
-                            DTEl.fechaPortalCen = isDbNull(iRow, 15);
-                            DTEl.fechaCarga = isDbNull(iRow, 17);
+                            string tipoDTEFaceleSearch = isDbNull(ListaFilaSinDTE, 8);
+                            string RutReceptorFaceleSearch = ListaFilaSinDTE[1].ToString();
+                            int NetoFaceleSearch = Int32.Parse(isDbNull(ListaFilaSinDTE, 9));
+                            int TotalFaceleSearch = Int32.Parse(isDbNull(ListaFilaSinDTE, 11));
 
-
-                            // Busqueda con LINQ Lista IEnumerator por si se repiten facturas iguales (mismo criterio)
+                            // Busqueda con LINQ Lista IEnumerator por si se repiten 
+                            // facturas (iguales mismo criterio en tipo, rut, neto y total en distintos periodos)
                             List<DTE> ListaDTEinFacele = DTE_WSFacele
                                  .Where(x =>
                                  {
                                      if (
-                                        (x.tipoDTE == DTEl.tipoDTE) 
-                                        && (x.rutReceptor == DTEl.rutReceptor) 
-                                        && (x.Neto == DTEl.Neto) 
-                                        && (x.Total == DTEl.Total)
+                                        (x.tipoDTE == tipoDTEFaceleSearch)
+                                        && (x.rutReceptor == RutReceptorFaceleSearch)
+                                        && (x.Neto == NetoFaceleSearch)
+                                        && (x.Total == TotalFaceleSearch)
                                          )
                                          return true;
-                                     else 
+                                     else
                                          return false;
                                  })
                                  .ToList();
 
-                            foreach (var xRow in ListaDTEinFacele)  //IEnumerator evita crash si se repite docto
+                            if (ListaDTEinFacele.Count() == 0)
                             {
-                                    DTEl.folioDTE = xRow.folioDTE;
 
-                                    DTEl.fechaEmision = xRow.fechaEmision;
-                                    DTEl.fechaFirma = xRow.fechaFirma;
-                                    DTEl.fechaRegistroSII = xRow.fechaRegistroSII;
-                                    DTEl.estadoSII = xRow.estadoSII;
-                                    DTEl.estadoRecepcion = xRow.estadoRecepcion;
-                                    DTEl.estadoLey19983 = xRow.estadoLey19983;
-                                    DTEl.estadoLey20956 = xRow.estadoLey20956;
-                                    FilasSinDTEenFacele++;
+                                DTE DTEl = new DTE();
+
+                                DTEl.empresa = sociedad[2];
+                                DTEl.tipoDTE = isDbNull(ListaFilaSinDTE, 8);
+                                DTEl.rutReceptor = ListaFilaSinDTE[1].ToString();
+                                DTEl.razonSocialReceptor = ListaFilaSinDTE[2].ToString();
+                                DTEl.PeriodoFacturacion = ListaFilaSinDTE[3].ToString();
+                                DTEl.Glosa = ListaFilaSinDTE[5].ToString();
+                                DTEl.Codigo = ListaFilaSinDTE[6].ToString();
+                                DTEl.Neto = Int32.Parse(isDbNull(ListaFilaSinDTE, 9));
+                                DTEl.Iva = Int32.Parse(isDbNull(ListaFilaSinDTE, 10));
+                                DTEl.Total = Int32.Parse(isDbNull(ListaFilaSinDTE, 11));
+                                DTEl.fechaFacturacion = isDbNull(ListaFilaSinDTE, 12);
+                                DTEl.fechaPortalCen = isDbNull(ListaFilaSinDTE, 15);
+                                DTEl.fechaCarga = isDbNull(ListaFilaSinDTE, 17);
+
+                                // Agrega datos a Lista
+                                DTE_Segge.Add(DTEl);
+                                FilasSinDTE++;
                             }
+                            else {
+                                    foreach (var DTEinFacele in ListaDTEinFacele)
+                                    {
 
-                            // Agrega datos a Lista
-                            DTE_Segge.Add(DTEl);
-                            FilasSinDTE++;
+                                        DTE DTEl = new DTE();
 
+                                        DTEl.empresa = sociedad[2];
+                                        DTEl.tipoDTE = isDbNull(ListaFilaSinDTE, 8);
+                                        DTEl.rutReceptor = ListaFilaSinDTE[1].ToString();
+                                        DTEl.razonSocialReceptor = ListaFilaSinDTE[2].ToString();
+                                        DTEl.PeriodoFacturacion = ListaFilaSinDTE[3].ToString();
+                                        DTEl.Glosa = ListaFilaSinDTE[5].ToString();
+                                        DTEl.Codigo = ListaFilaSinDTE[6].ToString();
+                                        DTEl.Neto = Int32.Parse(isDbNull(ListaFilaSinDTE, 9));
+                                        DTEl.Iva = Int32.Parse(isDbNull(ListaFilaSinDTE, 10));
+                                        DTEl.Total = Int32.Parse(isDbNull(ListaFilaSinDTE, 11));
+                                        DTEl.fechaFacturacion = isDbNull(ListaFilaSinDTE, 12);
+                                        DTEl.fechaPortalCen = isDbNull(ListaFilaSinDTE, 15);
+                                        DTEl.fechaCarga = isDbNull(ListaFilaSinDTE, 17);
+
+                                        DTEl.folioDTE = DTEinFacele.folioDTE;
+
+                                        DTEl.fechaEmision = DTEinFacele.fechaEmision;
+                                        DTEl.fechaFirma = DTEinFacele.fechaFirma;
+                                        DTEl.fechaRegistroSII = DTEinFacele.fechaRegistroSII;
+                                        DTEl.estadoSII = DTEinFacele.estadoSII;
+                                        DTEl.estadoRecepcion = DTEinFacele.estadoRecepcion;
+                                        DTEl.estadoLey19983 = DTEinFacele.estadoLey19983;
+                                        DTEl.estadoLey20956 = DTEinFacele.estadoLey20956;
+                                        FilasSinDTEenFacele++;
+
+                                        DTE_Segge.Add(DTEl);
+                                        FilasSinDTE++;
+                                    }
+                            }
 
                         }
                         
@@ -418,7 +464,7 @@ namespace DTE_ComparaArco
 
         }
 
-        static void  sendMail(string BodyFileHtml_IF_EMAIL_FAILED="")
+        static void sendDiffNotification_Mail(string BodyFileHtml_IF_EMAIL_FAILED="")
         {
             
             try
@@ -446,7 +492,9 @@ namespace DTE_ComparaArco
                 smtp.EnableSsl = Params.EnableSSL;
 
                 string msgMail = "<p>La siguiente tabla corresponde a los documentos autorizados para su facturación pero aparecen sin DTE informado en los registros SIGGE.  Para mayor información ver en pagina <a href='http://www.sigge.cl'>Sigge.cl</a></p>";
-                string cabeceraTabla = @"
+                msgMail += oLog.Generated_Errors ? "<br><h4><span style='color:#ff0000;'>**Proceso ejecutado con errores, contacte a su administrador**</span></h4>" : "";
+          
+                   string cabeceraTabla = @"
                       <table style='border-collapse:collapse;border-spacing:0' class='tg'>
                         <thead>
                           <tr>
@@ -530,7 +578,7 @@ namespace DTE_ComparaArco
 
                 smtp.Send(Mensaje);
 
-                oLog.Add("INFO", String.Format("Email enviado con {0} registros informados", DTE_Segge.Count().ToString()));
+                oLog.Add("INFO", String.Format("Email enviado con {0} registros Sigge informados", DTE_Segge.Count().ToString()));
 
             }
             catch (Exception ex)
@@ -562,6 +610,56 @@ namespace DTE_ComparaArco
                 }
 
 
+            }
+
+
+        }
+
+        static void sendErrorNotification_Mail()
+        {
+
+            try
+            {
+                MailMessage Mensaje = new MailMessage();
+                Mensaje.To.Add(new MailAddress(Params.EmailTO));
+                Mensaje.To.Add(new MailAddress(Params.EmailTO2));
+                Mensaje.From = new MailAddress(Params.EmailUser);
+
+                Mensaje.IsBodyHtml = true;
+
+                Mensaje.Subject = "Error Proceso Documentos Sigge sin DTE (DTE_COMPARA)";
+
+                SmtpClient smtp = new SmtpClient();
+                NetworkCredential credencial = new NetworkCredential()
+                {
+                    UserName = Params.EmailUser,
+                    Password = Params.EmailPassword,
+                };
+
+                smtp.UseDefaultCredentials = false;
+                smtp.Credentials = credencial;
+                smtp.Host = Params.SMTPName;
+                smtp.Port = Params.SMTPPort;
+                smtp.EnableSsl = Params.EnableSSL;
+
+                string msgMail = "<p>Se registraron errores en el proceso de verificación de documentos autorizados por Sigge para facturación.<br>Para mayor información consulte archivo log del día.</p>";
+
+                string footerTabla = @"
+                      <td style='color: #ffffff; font-family: Arial, sans-serif; font-size: 10px;'>
+                        &reg; Powered by Codevsys 2020 para ArcoEnergy <br/>
+                       </td>";
+
+                Mensaje.Body = msgMail + "</br></br>" + footerTabla;
+
+                smtp.Send(Mensaje);
+
+                oLog.Add("INFO", "Email enviado con registro de errores.");
+
+            }
+            catch (Exception ex)
+            {
+                oLog.Add("ERROR",
+                    String.Format("Error al enviar EMail 'sendErrorNotification_Mail' : {0}", ex.Message));
             }
 
 
@@ -628,6 +726,7 @@ namespace DTE_ComparaArco
         public String EmailTO { get; set; }
         public String EmailTO2 { get; set; }
         public String DirectorioExcelSigge { get; set; }
+        public String DirectorioLogs { get; set; }
         public String PeriodoEmision { get; set; }
     }
 
@@ -661,5 +760,4 @@ namespace DTE_ComparaArco
         public string estadoLey19983 { get; set; }
         public string estadoLey20956 { get; set; }
     }
-
 }

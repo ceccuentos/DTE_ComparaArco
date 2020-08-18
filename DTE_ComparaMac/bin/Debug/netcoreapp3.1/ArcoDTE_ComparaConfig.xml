@@ -24,7 +24,7 @@
 		  <value>http://facele.cl/docele/servicios/DTE/consultar</value>
 	</setting>
 	<setting name="SMTPName" serializeAs="String">
-      <value>smtp.gmail.comx</value>
+      <value>smtp.gmail.com</value>
     </setting>
     <setting name="SMTPPort" serializeAs="String">
       <value>587</value>
@@ -47,5 +47,8 @@
     <setting name="DirectorioExcelSigge" serializeAs="String">
       <value>c:\Users\PC\Desktop\xlsSigge</value>
     </setting>
+	  <setting name="DirectorioLogs" serializeAs="String">
+		  <value>c:\Users\PC\Desktop\xlsSigge\Logs</value>
+	  </setting>
   </ArcoDTE_Compara.Properties.Settings>
 </applicationSettings>
